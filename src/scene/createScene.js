@@ -30,7 +30,7 @@ function getFitDistance(camera, bounds, target) {
 
 export function createScene({ canvasContainer, labelsContainer, bounds }) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#eef1ee');
+  scene.background = new THREE.Color(SCENE_CONFIG.sceneBackground);
 
   const placesGroup = new THREE.Group();
   placesGroup.name = 'places';
@@ -70,7 +70,10 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   const floorDepth = bounds.depth + SCENE_CONFIG.floorPadding * 2;
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(floorWidth, floorDepth),
-    new THREE.MeshStandardMaterial({ color: '#dfe5e0', roughness: 0.95 }),
+    new THREE.MeshStandardMaterial({
+      color: SCENE_CONFIG.sceneBackground,
+      roughness: 0.95,
+    }),
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(center.x, -0.04, center.z);
