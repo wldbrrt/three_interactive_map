@@ -9,4 +9,9 @@ export const SCENE_CONFIG = Object.freeze({
   labelFullNameScale: 1.12,
   labelMaxScale: 2.4,
   cameraTransitionDuration: 680,
+  hoverEmissiveColor: 0xffffff,
+  hoverEmissiveIntensity: 0.14,
+  selectedOutlineColor: 0xfff000,
+  selectedOutlineScale: 1.01,
+  selectedOutlineWidth: 3.5,
 });

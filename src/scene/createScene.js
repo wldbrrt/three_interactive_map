@@ -305,6 +305,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     scene,
     placesGroup,
     cameraController,
+    controls: [controls, orthographicControls],
     renderer,
     labelRenderer,
     dispose,

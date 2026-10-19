@@ -13,6 +13,25 @@
       <div class="scene__toolbar">
         <button class="mode-toggle" id="mode-toggle" type="button">План 2D</button>
       </div>
+      <aside class="place-details" id="place-details" aria-live="polite" hidden>
+        <div class="place-details__header">
+          <div>
+            <p class="place-details__eyebrow" data-place-id></p>
+            <h2 class="place-details__title" data-place-name></h2>
+          </div>
+          <button class="place-details__close" type="button" data-close-details aria-label="Закрыть сведения">×</button>
+        </div>
+        <dl class="place-details__data">
+          <div>
+            <dt>Координаты</dt>
+            <dd data-place-position></dd>
+          </div>
+          <div>
+            <dt>Размеры</dt>
+            <dd data-place-dimensions></dd>
+          </div>
+        </dl>
+      </aside>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

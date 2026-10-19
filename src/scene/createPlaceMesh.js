@@ -9,6 +9,7 @@ export function createPlaceMesh(place) {
   );
   const material = new THREE.MeshStandardMaterial({
     color: place.color,
+    emissive: 0x000000,
     roughness: 0.72,
     metalness: 0.02,
   });
