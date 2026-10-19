@@ -1,5 +1,6 @@
 export const SCENE_CONFIG = Object.freeze({
   sceneBackground: 0xffffff,
+  emptySceneSize: 12,
   storeHeight: 2,
   floorPadding: 6,
   cameraFov: 42,

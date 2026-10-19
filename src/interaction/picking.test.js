@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
+import { SCENE_CONFIG } from '../app/config.js';
 import {
   createSelectionOutline,
   hasPointerMoved,
@@ -16,7 +17,7 @@ test('outlines all twelve box edges at configured pixel width without replacing 
   assert.equal(outline.name, 'selection-outline');
   assert.equal(outline.userData.isSelectionOutline, true);
   assert.equal(outline.material.color.getHex(), 0xfff000);
-  assert.equal(outline.material.linewidth, 2.5);
+  assert.equal(outline.material.linewidth, SCENE_CONFIG.selectedOutlineWidth);
   assert.deepEqual(outline.material.resolution.toArray(), [1280, 720]);
   assert.equal(outline.geometry.attributes.instanceStart.count, 12);
   assert.ok(outline.scale.x > 1);

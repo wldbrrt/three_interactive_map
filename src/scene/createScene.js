@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SCENE_CONFIG } from '../app/config.js';
 import { createCameraController } from './cameraController.js';
+import { normalizeSceneBounds } from './normalizeSceneBounds.js';
 
 function getFitDistance(camera, bounds, target) {
   const inverseRotation = camera.quaternion.clone().invert();
@@ -29,6 +30,7 @@ function getFitDistance(camera, bounds, target) {
 }
 
 export function createScene({ canvasContainer, labelsContainer, bounds }) {
+  bounds = normalizeSceneBounds(bounds);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_CONFIG.sceneBackground);
 
