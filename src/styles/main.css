@@ -39,6 +39,36 @@ body {
   pointer-events: none;
 }
 
+.scene__toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  right: 16px;
+}
+
+.mode-toggle {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #34483e;
+  border-radius: 4px;
+  background: #fff;
+  color: #26322c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(20 32 26 / 16%);
+}
+
+.mode-toggle:hover {
+  background: #e7efe9;
+}
+
+.mode-toggle:focus-visible {
+  outline: 3px solid #4e9a86;
+  outline-offset: 2px;
+}
+
 .scene__canvas canvas,
 .scene__labels > div {
   display: block;

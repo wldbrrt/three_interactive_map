@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SCENE_CONFIG } from '../app/config.js';
+import { createCameraController } from './cameraController.js';
 
 function getFitDistance(camera, bounds, target) {
   const inverseRotation = camera.quaternion.clone().invert();
@@ -49,11 +50,15 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   labelRenderer.domElement.setAttribute('aria-hidden', 'true');
   labelsContainer.append(labelRenderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x738078, 2.1));
+  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x738078, 2.1);
+  scene.add(hemisphereLight);
 
   const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+  const baseHemisphereIntensity = hemisphereLight.intensity;
+  const baseDirectionalIntensity = keyLight.intensity;
   keyLight.position.set(center.x + bounds.width * 0.3, 36, center.z - bounds.depth * 0.2);
   keyLight.castShadow = true;
+  keyLight.shadow.radius = 3;
   keyLight.shadow.mapSize.set(2048, 2048);
   keyLight.shadow.camera.left = -bounds.width;
   keyLight.shadow.camera.right = bounds.width;
@@ -99,7 +104,38 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   controls.maxPolarAngle = Math.PI / 2.05;
   controls.update();
 
+  const orthographicCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2000);
+  orthographicCamera.position.copy(center).add(new THREE.Vector3(0, 1, 0));
+  orthographicCamera.up.set(0, 0, -1);
+  orthographicCamera.lookAt(center);
+
+  const orthographicControls = new OrbitControls(orthographicCamera, renderer.domElement);
+  orthographicControls.target.copy(center);
+  orthographicControls.enableDamping = true;
+  orthographicControls.dampingFactor = 0.08;
+  orthographicControls.enableRotate = false;
+  orthographicControls.enablePan = true;
+  orthographicControls.minZoom = 0.55;
+  orthographicControls.maxZoom = 4;
+  orthographicControls.enabled = false;
+  orthographicControls.update();
+
   let labelsNeedLayout = true;
+  let activeCamera = camera;
+  let activeControls = controls;
+  const cameraController = createCameraController({
+    perspectiveCamera: camera,
+    orthographicCamera,
+    perspectiveControls: controls,
+    orthographicControls,
+    bounds,
+    target: center,
+    onChange: ({ camera: nextCamera, controls: nextControls }) => {
+      activeCamera = nextCamera;
+      activeControls = nextControls;
+      markLabelsDirty();
+    },
+  });
   const raycaster = new THREE.Raycaster();
   const labelWorldPosition = new THREE.Vector3();
   const cameraToLabel = new THREE.Vector3();
@@ -113,9 +149,8 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     const labels = placesGroup.children.flatMap((mesh) => mesh.children
       .filter((child) => child.isCSS2DObject)
       .map((label) => ({ mesh, label, element: label.element })));
-    const cameraDistance = camera.position.distanceTo(controls.target);
     const labelScale = THREE.MathUtils.clamp(
-      distance / cameraDistance,
+      cameraController.labelScale,
       0.85,
       SCENE_CONFIG.labelMaxScale,
     );
@@ -123,7 +158,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
 
     for (const { mesh, label, element } of labels) {
       mesh.getWorldPosition(meshWorldPosition);
-      const directionToCamera = camera.position.clone().sub(meshWorldPosition);
+      const directionToCamera = activeCamera.position.clone().sub(meshWorldPosition);
       const isSideView = Math.abs(directionToCamera.y) / directionToCamera.length() < 0.72;
 
       if (!isSideView) {
@@ -154,15 +189,15 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     scene.updateMatrixWorld(true);
 
     labels.sort((first, second) => (
-      first.mesh.position.distanceToSquared(camera.position)
-      - second.mesh.position.distanceToSquared(camera.position)
+      first.mesh.position.distanceToSquared(activeCamera.position)
+      - second.mesh.position.distanceToSquared(activeCamera.position)
     ));
 
     const occupied = [];
 
     for (const { mesh, label, element } of labels) {
       label.getWorldPosition(labelWorldPosition);
-      cameraToLabel.subVectors(labelWorldPosition, camera.position);
+      cameraToLabel.subVectors(labelWorldPosition, activeCamera.position);
       const labelDistance = cameraToLabel.length();
       raycaster.set(camera.position, cameraToLabel.normalize());
       raycaster.far = Math.max(0, labelDistance - 0.05);
@@ -199,6 +234,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   }
 
   controls.addEventListener('change', markLabelsDirty);
+  orthographicControls.addEventListener('change', markLabelsDirty);
 
   function resize() {
     const width = canvasContainer.clientWidth;
@@ -208,13 +244,12 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
       return;
     }
 
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    cameraController.resize(width / height);
 
     const currentDistance = camera.position.distanceTo(controls.target);
     const fitDistance = getFitDistance(camera, bounds, controls.target);
 
-    if (currentDistance < fitDistance) {
+    if (cameraController.activeMode === '3d' && currentDistance < fitDistance) {
       const viewDirection = camera.position.clone().sub(controls.target).normalize();
       camera.position.copy(controls.target).addScaledVector(viewDirection, fitDistance);
       controls.update();
@@ -230,9 +265,14 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   resize();
 
   renderer.setAnimationLoop(() => {
-    controls.update();
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
+    cameraController.update();
+    activeControls.update();
+    const directionalFactor = cameraController.shadowIntensity;
+    keyLight.intensity = baseDirectionalIntensity * directionalFactor;
+    hemisphereLight.intensity = baseHemisphereIntensity
+      + baseDirectionalIntensity * (1 - directionalFactor);
+    renderer.render(scene, activeCamera);
+    labelRenderer.render(scene, activeCamera);
 
     if (labelsNeedLayout) {
       layoutLabels();
@@ -243,7 +283,9 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   function dispose() {
     resizeObserver.disconnect();
     controls.removeEventListener('change', markLabelsDirty);
+    orthographicControls.removeEventListener('change', markLabelsDirty);
     controls.dispose();
+    orthographicControls.dispose();
     renderer.setAnimationLoop(null);
     scene.traverse((object) => {
       object.geometry?.dispose();
@@ -259,5 +301,12 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     labelRenderer.domElement.remove();
   }
 
-  return { scene, placesGroup, camera, controls, renderer, labelRenderer, dispose };
+  return {
+    scene,
+    placesGroup,
+    cameraController,
+    renderer,
+    labelRenderer,
+    dispose,
+  };
 }

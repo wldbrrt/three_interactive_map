@@ -8,4 +8,5 @@ export const SCENE_CONFIG = Object.freeze({
   labelExpandedMaxWidth: 260,
   labelFullNameScale: 1.12,
   labelMaxScale: 2.4,
+  cameraTransitionDuration: 680,
 });
