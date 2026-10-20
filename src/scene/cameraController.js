@@ -350,11 +350,21 @@ export function createCameraController({
     },
     get labelScale() {
       if (activeMode === '2d') {
-        return orthographicCamera.zoom / stableOrthographicZoom;
+        const baselineZoom = transition?.targetMode === '2d'
+          ? transition.endZoom
+          : stableOrthographicZoom;
+        return orthographicCamera.zoom / baselineZoom;
       }
 
       return savedPerspectivePose.position.distanceTo(savedPerspectivePose.target)
         / perspectiveCamera.position.distanceTo(perspectiveControls.target);
+    },
+    get labelDistance() {
+      if (activeMode === '2d') {
+        return orthographicBaseHeight / orthographicCamera.zoom;
+      }
+
+      return perspectiveCamera.position.distanceTo(perspectiveControls.target);
     },
     get shadowIntensity() {
       return shadowIntensity;
