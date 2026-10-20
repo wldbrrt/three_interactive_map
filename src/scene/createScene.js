@@ -97,7 +97,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const distanceForHeight = maxDimension / (2 * Math.tan(verticalFov / 2));
   const distance = distanceForHeight * SCENE_CONFIG.cameraFitMargin;
-  const viewDirection = new THREE.Vector3(0.3, 3.2, 1).normalize();
+  const viewDirection = new THREE.Vector3(1.3, 1.2, 1.5).normalize();
   camera.position.copy(center).addScaledVector(viewDirection, distance);
   camera.lookAt(center);
 

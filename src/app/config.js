@@ -21,7 +21,7 @@ export const SCENE_CONFIG = Object.freeze({
   labelExpandedLineHeight: 1.3,
 
   cameraFov: 42,
-  cameraFitMargin: 1.05,
+  cameraFitMargin: 0.5,
   cameraTransitionDuration: 680,
 
   hoverEmissiveColor: 0xffffff,
