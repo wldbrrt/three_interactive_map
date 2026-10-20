@@ -95,6 +95,34 @@ test('resizes both camera projections for the new aspect ratio', () => {
   assert.ok(orthographicCamera.top - orthographicCamera.bottom > 0);
 });
 
+test('normalizes label zoom for perspective and orthographic cameras', () => {
+  const {
+    controller,
+    perspectiveCamera,
+    orthographicCamera,
+    perspectiveControls,
+  } = createController();
+
+  assert.equal(controller.labelScale, 1);
+  const perspectiveDistance = perspectiveCamera.position.distanceTo(perspectiveControls.target);
+  assert.equal(controller.labelDistance, perspectiveDistance);
+  perspectiveCamera.position.copy(perspectiveControls.target).add(
+    new THREE.Vector3(0, perspectiveDistance / 2, 0),
+  );
+  assert.equal(controller.labelScale, 2);
+
+  controller.setMode('2d', 0);
+  controller.update(326.4);
+  controller.update(680);
+  assert.equal(controller.labelScale, 1);
+  assert.equal(
+    controller.labelDistance,
+    (orthographicCamera.top - orthographicCamera.bottom) / orthographicCamera.zoom,
+  );
+  orthographicCamera.zoom *= 1.5;
+  assert.equal(controller.labelScale, 1.5);
+});
+
 test('derives the 2D plan orientation from the side of the 3D camera', () => {
   const firstView = createController(new THREE.Vector3(55, 75, 100));
   const secondView = createController(new THREE.Vector3(100, 75, 55));

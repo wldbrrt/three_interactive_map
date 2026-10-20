@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SCENE_CONFIG } from '../app/config.js';
 import { createCameraController } from './cameraController.js';
+import { createLabelController } from './labelController.js';
 import { normalizeSceneBounds } from './normalizeSceneBounds.js';
 
 function getFitDistance(camera, bounds, target) {
@@ -96,7 +97,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const distanceForHeight = maxDimension / (2 * Math.tan(verticalFov / 2));
   const distance = distanceForHeight * SCENE_CONFIG.cameraFitMargin;
-  const viewDirection = new THREE.Vector3(0.3, 3.2, 1).normalize();
+  const viewDirection = new THREE.Vector3(1.3, 1.2, 1.5).normalize();
   camera.position.copy(center).addScaledVector(viewDirection, distance);
   camera.lookAt(center);
 
@@ -125,7 +126,6 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
   orthographicControls.enabled = false;
   orthographicControls.update();
 
-  let labelsNeedLayout = true;
   let activeCamera = camera;
   let activeControls = controls;
   const cameraController = createCameraController({
@@ -138,108 +138,13 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     onChange: ({ camera: nextCamera, controls: nextControls }) => {
       activeCamera = nextCamera;
       activeControls = nextControls;
-      markLabelsDirty();
     },
   });
-  const raycaster = new THREE.Raycaster();
-  const labelWorldPosition = new THREE.Vector3();
-  const cameraToLabel = new THREE.Vector3();
-  const meshWorldPosition = new THREE.Vector3();
+  let labelsNeedUpdate = true;
 
-  function markLabelsDirty() {
-    labelsNeedLayout = true;
+  function markLabelsNeedUpdate() {
+    labelsNeedUpdate = true;
   }
-
-  function layoutLabels() {
-    const labels = placesGroup.children.flatMap((mesh) => mesh.children
-      .filter((child) => child.isCSS2DObject)
-      .map((label) => ({ mesh, label, element: label.element })));
-    const labelScale = THREE.MathUtils.clamp(
-      cameraController.labelScale,
-      0.85,
-      SCENE_CONFIG.labelMaxScale,
-    );
-    const showFullNames = labelScale >= SCENE_CONFIG.labelFullNameScale;
-
-    for (const { mesh, label, element } of labels) {
-      mesh.getWorldPosition(meshWorldPosition);
-      const directionToCamera = activeCamera.position.clone().sub(meshWorldPosition);
-      const isSideView = Math.abs(directionToCamera.y) / directionToCamera.length() < 0.72;
-
-      if (!isSideView) {
-        label.position.set(0, SCENE_CONFIG.storeHeight / 2 + 0.08, 0);
-      } else if (Math.abs(directionToCamera.x) > Math.abs(directionToCamera.z)) {
-        label.position.set(
-          Math.sign(directionToCamera.x) * (mesh.geometry.parameters.width / 2 + 0.04),
-          SCENE_CONFIG.storeHeight / 2,
-          0,
-        );
-      } else {
-        label.position.set(
-          0,
-          SCENE_CONFIG.storeHeight / 2,
-          Math.sign(directionToCamera.z) * (mesh.geometry.parameters.depth / 2 + 0.04),
-        );
-      }
-
-      const expanded = showFullNames;
-      element.textContent = expanded ? element.dataset.fullName : element.dataset.compactName;
-      element.classList.toggle('place-label--expanded', expanded);
-      element.style.setProperty('--label-scale', labelScale.toFixed(3));
-      element.style.maxWidth = expanded
-        ? `${Math.min(SCENE_CONFIG.labelExpandedMaxWidth, 150 * labelScale)}px`
-        : 'var(--compact-max-width)';
-    }
-
-    scene.updateMatrixWorld(true);
-
-    labels.sort((first, second) => (
-      first.mesh.position.distanceToSquared(activeCamera.position)
-      - second.mesh.position.distanceToSquared(activeCamera.position)
-    ));
-
-    const occupied = [];
-
-    for (const { mesh, label, element } of labels) {
-      label.getWorldPosition(labelWorldPosition);
-      cameraToLabel.subVectors(labelWorldPosition, activeCamera.position);
-      const labelDistance = cameraToLabel.length();
-      raycaster.set(camera.position, cameraToLabel.normalize());
-      raycaster.far = Math.max(0, labelDistance - 0.05);
-
-      const occluded = raycaster.intersectObjects(placesGroup.children, false)
-        .some(({ object }) => object !== mesh);
-
-      element.style.visibility = occluded ? 'hidden' : 'visible';
-
-      if (occluded || element.style.display === 'none') {
-        continue;
-      }
-
-      const rect = element.getBoundingClientRect();
-      const paddedRect = {
-        left: rect.left - 2,
-        right: rect.right + 2,
-        top: rect.top - 2,
-        bottom: rect.bottom + 2,
-      };
-      const intersects = occupied.some((other) => (
-        paddedRect.left < other.right
-        && paddedRect.right > other.left
-        && paddedRect.top < other.bottom
-        && paddedRect.bottom > other.top
-      ));
-
-      if (intersects) {
-        element.style.visibility = 'hidden';
-      } else {
-        occupied.push(paddedRect);
-      }
-    }
-  }
-
-  controls.addEventListener('change', markLabelsDirty);
-  orthographicControls.addEventListener('change', markLabelsDirty);
 
   function resize() {
     const width = canvasContainer.clientWidth;
@@ -249,6 +154,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
       return;
     }
 
+    labelsNeedUpdate = true;
     cameraController.resize(width / height);
 
     const currentDistance = camera.position.distanceTo(controls.target);
@@ -259,36 +165,55 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
       camera.position.copy(controls.target).addScaledVector(viewDirection, fitDistance);
       controls.update();
     }
-
     renderer.setSize(width, height);
     labelRenderer.setSize(width, height);
-    markLabelsDirty();
   }
+
+  controls.addEventListener('change', markLabelsNeedUpdate);
+  orthographicControls.addEventListener('change', markLabelsNeedUpdate);
 
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvasContainer);
   resize();
 
+  let labelController = null;
+
+  function setLabelController(controller) {
+    labelController = controller;
+    labelsNeedUpdate = true;
+  }
+
   renderer.setAnimationLoop(() => {
+    const cameraWasTransitioning = cameraController.isTransitioning;
     cameraController.update();
-    activeControls.update();
+    const controlsChanged = activeControls.update();
     const directionalFactor = cameraController.shadowIntensity;
     keyLight.intensity = baseDirectionalIntensity * directionalFactor;
     hemisphereLight.intensity = baseHemisphereIntensity
       + baseDirectionalIntensity * (1 - directionalFactor);
     renderer.render(scene, activeCamera);
-    labelRenderer.render(scene, activeCamera);
 
-    if (labelsNeedLayout) {
-      layoutLabels();
-      labelsNeedLayout = false;
+    if (
+      labelController
+      && (
+        labelsNeedUpdate
+        || cameraWasTransitioning
+        || cameraController.isTransitioning
+        || controlsChanged
+      )
+    ) {
+      labelController.update(activeCamera);
+      labelsNeedUpdate = false;
     }
+
+    labelRenderer.render(scene, activeCamera);
   });
 
   function dispose() {
     resizeObserver.disconnect();
-    controls.removeEventListener('change', markLabelsDirty);
-    orthographicControls.removeEventListener('change', markLabelsDirty);
+    controls.removeEventListener('change', markLabelsNeedUpdate);
+    orthographicControls.removeEventListener('change', markLabelsNeedUpdate);
+    labelController?.dispose();
     controls.dispose();
     orthographicControls.dispose();
     renderer.setAnimationLoop(null);
@@ -311,6 +236,7 @@ export function createScene({ canvasContainer, labelsContainer, bounds }) {
     placesGroup,
     cameraController,
     controls: [controls, orthographicControls],
+    setLabelController,
     renderer,
     labelRenderer,
     dispose,

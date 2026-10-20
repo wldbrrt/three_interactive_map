@@ -46,6 +46,7 @@ export function createPicking({
   placesById,
   cameraController,
   controls,
+  onHoverChange = () => {},
   onSelectionChange = () => {},
 }) {
   const raycaster = new THREE.Raycaster();
@@ -177,6 +178,7 @@ export function createPicking({
     hoveredId = nextHoveredId;
     applyVisualState(previousHoveredId);
     applyVisualState(hoveredId);
+    onHoverChange(hoveredId);
     canvas.style.cursor = hoveredId ? 'pointer' : 'grab';
   }
 
@@ -185,6 +187,7 @@ export function createPicking({
     const previousHoveredId = hoveredId;
     hoveredId = null;
     applyVisualState(previousHoveredId);
+    onHoverChange(null);
     canvas.style.cursor = 'grab';
   }
 
@@ -259,6 +262,7 @@ export function createPicking({
     hoveredId = nextHoveredId;
     applyVisualState(previousHoveredId);
     applyVisualState(hoveredId);
+    onHoverChange(hoveredId);
   }
 
   let lastPointerX = 0;
@@ -303,6 +307,8 @@ export function createPicking({
         mesh.material.emissive.copy(originalEmissive.get(mesh.userData.placeId));
         mesh.material.emissiveIntensity = 0;
       }
+      onHoverChange(null);
+      onSelectionChange(null);
     },
   };
 }

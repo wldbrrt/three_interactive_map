@@ -3,6 +3,7 @@ import { gridLayout } from './layout/gridLayout.js';
 import { createScene } from './scene/createScene.js';
 import { createPlaceMesh } from './scene/createPlaceMesh.js';
 import { createPlaceLabel } from './scene/createLabels.js';
+import { createLabelController } from './scene/labelController.js';
 import { createModeControl } from './ui/createModeControl.js';
 import { createPicking } from './interaction/picking.js';
 import { createPlaceDetails } from './ui/createPlaceDetails.js';
@@ -37,13 +38,23 @@ for (const place of places) {
   meshes.push(mesh);
 }
 
+const labelController = createLabelController({
+  placesGroup: app.placesGroup,
+  cameraController: app.cameraController,
+});
+app.setLabelController(labelController);
+
 picking = createPicking({
   canvas: app.renderer.domElement,
   meshes,
   placesById,
   cameraController: app.cameraController,
   controls: app.controls,
-  onSelectionChange: (place) => placeDetails.render(place),
+  onHoverChange: (placeId) => labelController.setHoveredId(placeId),
+  onSelectionChange: (place) => {
+    labelController.setSelectedId(place?.id ?? null);
+    placeDetails.render(place);
+  },
 });
 
 function disposeScene() {

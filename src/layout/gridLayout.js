@@ -2,7 +2,7 @@ import { validatePlaces } from '../data/generatePlaces.js';
 
 export const DEFAULT_LAYOUT_OPTIONS = Object.freeze({
   maxRowWidth: 40,
-  gap: 0.5,
+  gap: 1,
 });
 
 function validateLayoutOptions({ maxRowWidth, gap }) {
